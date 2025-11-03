@@ -105,7 +105,7 @@ export default function ProfilePage({ showFavoritesInitially = true }) {
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="relative">
               <div className="w-32 h-32 rounded-full overflow-hidden shadow-lg border-4 border-white/50">
-                <LazyImage src={profile.avatar || 'https://avatars.githubusercontent.com/atvouzx'} alt="Avatar" className="w-32 h-32 object-cover" />
+                <LazyImage src={profile.avatar || 'https://www.google.com/url?sa=i&url=https%3A%2F%2Fletsenhance.io%2F&psig=AOvVaw20jfPeWfU2czOIy1NhY-K5&ust=1762225503881000&source=images&cd=vfe&opi=89978449&ved=0CBUQjRxqFwoTCLjrjdv_1JADFQAAAAAdAAAAABAE'} alt="Avatar" className="w-32 h-32 object-cover" />
               </div>
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
               <div className="mt-2 text-center">
