@@ -1,5 +1,5 @@
 // src/main.jsx
-import { StrictMode, useState } from 'react'
+import { StrictMode, useState, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import SplashScreen from './pages/SplashScreen';
 import HomePage from './pages/HomePage';
@@ -9,6 +9,7 @@ import ProfilePage from './pages/ProfilePage';
 import CreateRecipePage from './pages/CreateRecipePage';
 import EditRecipePage from './pages/EditRecipePage';
 import RecipeDetail from './components/recipe/RecipeDetail';
+// Favorites page is now embedded into ProfilePage; the standalone FavoritesPage file remains but is not imported here.
 import DesktopNavbar from './components/navbar/DesktopNavbar';
 import MobileNavbar from './components/navbar/MobileNavbar';
 import './index.css'
@@ -21,6 +22,20 @@ function AppRoot() {
   const [selectedRecipeId, setSelectedRecipeId] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('makanan');
   const [editingRecipeId, setEditingRecipeId] = useState(null);
+
+  // If app loaded with ?recipe=<id> in URL, open detail view for that recipe
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const recipeParam = params.get('recipe');
+      if (recipeParam) {
+        setSelectedRecipeId(recipeParam);
+        setMode('detail');
+      }
+    } catch {
+      // ignore malformed URL or environments without window
+    }
+  }, []);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
@@ -65,7 +80,7 @@ function AppRoot() {
     }
   };
 
-  const handleEditSuccess = (updatedRecipe) => {
+  const handleEditSuccess = () => {
     alert('Resep berhasil diperbarui!');
     setMode('list');
   };
@@ -114,6 +129,10 @@ function AppRoot() {
         return <MinumanPage onRecipeClick={handleRecipeClick} />;
       case 'profile':
         return <ProfilePage onRecipeClick={handleRecipeClick} />;
+      case 'favorites':
+        // Favorites are now part of the profile page; render ProfilePage instead so
+        // the user sees favorites within their profile context.
+        return <ProfilePage onRecipeClick={handleRecipeClick} showFavoritesInitially={true} />;
       default:
         return <HomePage onRecipeClick={handleRecipeClick} onNavigate={handleNavigation} />;
     }
@@ -128,19 +147,19 @@ function AppRoot() {
       {/* Only show navbar in list mode */}
       {mode === 'list' && (
         <>
-          <DesktopNavbar 
-            currentPage={currentPage} 
+          <DesktopNavbar
+            currentPage={currentPage}
             onNavigate={handleNavigation}
             onCreateRecipe={handleCreateRecipe}
           />
-          <MobileNavbar 
-            currentPage={currentPage} 
+          <MobileNavbar
+            currentPage={currentPage}
             onNavigate={handleNavigation}
             onCreateRecipe={handleCreateRecipe}
           />
         </>
       )}
-      
+
       {/* Main Content */}
       <main className="min-h-screen">
         {renderCurrentPage()}
@@ -156,4 +175,3 @@ createRoot(document.getElementById('root')).render(
     <AppRoot />
   </StrictMode>,
 )
-

@@ -1,5 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
-import recipeService from "../services/recipeService";
+
+import { useState, useEffect, useCallback } from 'react';
+import recipeService from '../services/recipeService';
+
+// Simple in-memory cache for queries. Keys are JSON strings of params.
+const listCache = new Map(); // key -> { ts, data, pagination }
+const recipeCache = new Map(); // id -> { ts, data }
+const DEFAULT_CACHE_TTL = 60 * 1000; // 60s
 
 /**
  * Custom hook for fetching recipes
@@ -7,42 +13,70 @@ import recipeService from "../services/recipeService";
  * @returns {Object} - { recipes, loading, error, pagination, refetch }
  */
 export function useRecipes(params = {}) {
-  const [recipes, setRecipes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [pagination, setPagination] = useState(null);
+    const [recipes, setRecipes] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [pagination, setPagination] = useState(null);
 
-  const fetchRecipes = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await recipeService.getRecipes(params);
+    const paramsString = JSON.stringify(params);
 
-      if (response.success) {
-        setRecipes(response.data || []);
-        setPagination(response.pagination || null);
-      } else {
-        setError(response.message || "Failed to fetch recipes");
-      }
-    } catch (err) {
-      setError(err.message || "An error occurred while fetching recipes");
-      setRecipes([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [JSON.stringify(params)]);
+    const fetchRecipes = useCallback(async (force = false) => {
+        try {
+            setLoading(true);
+            setError(null);
 
-  useEffect(() => {
-    fetchRecipes();
-  }, [fetchRecipes]);
+            // derive cache values from paramsString (keeps deps stable)
+            const parsedParams = paramsString ? JSON.parse(paramsString) : {};
+            const cacheTimeLocal = parsedParams.__cacheTime ?? DEFAULT_CACHE_TTL;
+            const paramsForKeyLocal = { ...parsedParams };
+            delete paramsForKeyLocal.__cacheTime;
+            const cacheKeyLocal = JSON.stringify(paramsForKeyLocal);
 
-  return {
-    recipes,
-    loading,
-    error,
-    pagination,
-    refetch: fetchRecipes,
-  };
+            // Check cache
+            if (!force && listCache.has(cacheKeyLocal)) {
+                const entry = listCache.get(cacheKeyLocal);
+                if (Date.now() - entry.ts <= cacheTimeLocal) {
+                    setRecipes(entry.data || []);
+                    setPagination(entry.pagination || null);
+                    setLoading(false);
+                    return entry;
+                }
+            }
+
+            // Not cached or stale -> fetch
+            const response = await recipeService.getRecipes(paramsForKeyLocal);
+
+            if (response && response.success) {
+                setRecipes(response.data || []);
+                setPagination(response.pagination || null);
+                listCache.set(cacheKeyLocal, { ts: Date.now(), data: response.data || [], pagination: response.pagination || null });
+            } else if (response && !response.success) {
+                setError(response.message || 'Failed to fetch recipes');
+            } else {
+                // If API returns raw data (not wrapped), try to use it
+                setRecipes(response || []);
+                setPagination(null);
+                listCache.set(cacheKeyLocal, { ts: Date.now(), data: response || [], pagination: null });
+            }
+        } catch (err) {
+            setError(err.message || 'An error occurred while fetching recipes');
+            setRecipes([]);
+        } finally {
+            setLoading(false);
+        }
+    }, [paramsString]);
+
+    useEffect(() => {
+        fetchRecipes();
+    }, [fetchRecipes]);
+
+    return {
+        recipes,
+        loading,
+        error,
+        pagination,
+        refetch: (force = false) => fetchRecipes(force),
+    };
 }
 
 /**
@@ -51,42 +85,55 @@ export function useRecipes(params = {}) {
  * @returns {Object} - { recipe, loading, error, refetch }
  */
 export function useRecipe(id) {
-  const [recipe, setRecipe] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+    const [recipe, setRecipe] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const fetchRecipe = useCallback(async (force = false) => {
+        if (!id) {
+            setLoading(false);
+            return;
+        }
 
-  const fetchRecipe = useCallback(async () => {
-    if (!id) {
-      setLoading(false);
-      return;
-    }
+        try {
+            setLoading(true);
+            setError(null);
 
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await recipeService.getRecipeById(id);
+            if (!force && recipeCache.has(id)) {
+                const entry = recipeCache.get(id);
+                if (Date.now() - entry.ts <= DEFAULT_CACHE_TTL) {
+                    setRecipe(entry.data);
+                    setLoading(false);
+                    return entry;
+                }
+            }
 
-      if (response.success) {
-        setRecipe(response.data);
-      } else {
-        setError(response.message || "Failed to fetch recipe");
-      }
-    } catch (err) {
-      setError(err.message || "An error occurred while fetching recipe");
-      setRecipe(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+            const response = await recipeService.getRecipeById(id);
 
-  useEffect(() => {
-    fetchRecipe();
-  }, [fetchRecipe]);
+            if (response && response.success) {
+                setRecipe(response.data);
+                recipeCache.set(id, { ts: Date.now(), data: response.data });
+            } else if (response && !response.success) {
+                setError(response.message || 'Failed to fetch recipe');
+            } else {
+                setRecipe(response || null);
+                recipeCache.set(id, { ts: Date.now(), data: response || null });
+            }
+        } catch (err) {
+            setError(err.message || 'An error occurred while fetching recipe');
+            setRecipe(null);
+        } finally {
+            setLoading(false);
+        }
+    }, [id]);
 
-  return {
-    recipe,
-    loading,
-    error,
-    refetch: fetchRecipe,
-  };
+    useEffect(() => {
+        fetchRecipe();
+    }, [fetchRecipe]);
+
+    return {
+        recipe,
+        loading,
+        error,
+        refetch: fetchRecipe,
+    };
 }

@@ -1,5 +1,6 @@
 // src/components/DesktopNavbar.jsx
 import { Plus } from 'lucide-react';
+import PropTypes from 'prop-types';
 import logoUrl from '../../assets/LOGORN.png';
 
 export default function DesktopNavbar({ currentPage, onNavigate, onCreateRecipe }) {
@@ -7,6 +8,7 @@ export default function DesktopNavbar({ currentPage, onNavigate, onCreateRecipe 
     { id: 'home', label: 'Beranda' },
     { id: 'makanan', label: 'Makanan' },
     { id: 'minuman', label: 'Minuman' },
+    // { id: 'favorites', label: 'Favorit' },
     { id: 'profile', label: 'Profile' }
   ];
 
@@ -14,7 +16,7 @@ export default function DesktopNavbar({ currentPage, onNavigate, onCreateRecipe 
     <nav className="hidden md:block shadow-lg border-b border-blue-100 sticky top-0 z-50 backdrop-blur-sm bg-white/95">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
-          
+
           {/* Logo */}
           <div className="flex items-center space-x-4">
             <div className="relative group">
@@ -43,16 +45,15 @@ export default function DesktopNavbar({ currentPage, onNavigate, onCreateRecipe 
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`px-4 py-3 text-base font-medium transition-all duration-200 border-b-2 ${
-                  currentPage === item.id
+                className={`px-4 py-3 text-base font-medium transition-all duration-200 border-b-2 ${currentPage === item.id
                     ? 'text-blue-600 border-blue-500'
                     : 'text-slate-600 border-transparent hover:text-blue-500 hover:border-blue-300'
-                }`}
+                  }`}
               >
                 {item.label}
               </button>
             ))}
-            
+
             {/* Buat Resep Button */}
             <button
               onClick={onCreateRecipe}
@@ -62,10 +63,15 @@ export default function DesktopNavbar({ currentPage, onNavigate, onCreateRecipe 
               <span>Buat Resep</span>
             </button>
           </div>
-         
+
         </div>
       </div>
     </nav>
   );
 }
 
+DesktopNavbar.propTypes = {
+  currentPage: PropTypes.string,
+  onNavigate: PropTypes.func.isRequired,
+  onCreateRecipe: PropTypes.func,
+};
